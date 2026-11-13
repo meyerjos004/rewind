@@ -1,7 +1,7 @@
 {
   "name": "kairos-os",
   "productName": "KAIROS OS Beta",
-  "version": "0.9.3",
+  "version": "0.9.4",
   "description": "KAIROS OS Beta: futures replay for the group",
   "main": "main.js",
   "author": "King",

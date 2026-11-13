@@ -596,3 +596,8 @@ a.gdl{background:linear-gradient(180deg,#a78bfa,#8b5cf6);color:#0b0614!important
 .tgx{width:14px!important;height:14px!important;right:1px!important;bottom:1px!important;background:none!important;box-shadow:none!important;border:0!important}
 .tgx:hover,.tgx.open{background:none!important;color:#fff!important}
 .tgx svg{width:6px!important;height:6px!important;margin:auto 1px 1px auto!important}
+/* KING_TOOLS hotfix 2 (Nov 13): tools shrink with window height so the rail always fits; never show scrollbars inside it */
+.tools{scrollbar-width:none}.tools::-webkit-scrollbar{display:none}
+.tools .tool{height:clamp(30px,4.4vh,42px);width:clamp(36px,4.4vh,44px)}.tools .tool svg{width:clamp(18px,2.6vh,25px);height:clamp(18px,2.6vh,25px)}
+.tools .tg{width:auto}.tools .tsep{margin:clamp(2px,.5vh,6px) 0}
+.tools{gap:clamp(0px,.2vh,2px);padding-top:clamp(4px,1vh,10px)!important;padding-bottom:clamp(4px,1vh,10px)!important}

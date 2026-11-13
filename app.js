@@ -1684,7 +1684,7 @@ function runBuild(full) { const host = $("charts"); if (!host || document.getEle
     requestAnimationFrame(fr); };
   requestAnimationFrame(fr); }
 /* ---------------- KAIROS OS Beta: welcome cinematic (first time you're let in) + onboarding tour ---------------- */
-const APP_VERSION = "0.9.3", APP_LABEL = "Beta";
+const APP_VERSION = "0.9.4", APP_LABEL = "Beta";
 function wAudio() { try { const ac = new (window.AudioContext || window.webkitAudioContext)(), M = ac.createGain(); M.gain.value = 0.9; M.connect(ac.destination);
   const len = ac.sampleRate * 3, ir = ac.createBuffer(2, len, ac.sampleRate); for (let c = 0; c < 2; c++) { const d = ir.getChannelData(c); for (let i = 0; i < len; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / len, 2.4); }
   const V = ac.createConvolver(); V.buffer = ir; const vg = ac.createGain(); vg.gain.value = 0.5; V.connect(vg); vg.connect(M); return { ac, M, V }; } catch (e) { return null; } }
