@@ -604,3 +604,13 @@ a.gdl{background:linear-gradient(180deg,#a78bfa,#8b5cf6);color:#0b0614!important
 /* KING_TOOLS hotfix 3 (Nov 13): backdrop blur on the tool rail made its pop-out menus position inside the rail (clipped / scrolling). The rail keeps the glass look without the blur so menus float free again */
 .tools,.tools.float,body.glass .tools:not(.float),body.glass .tools.float{-webkit-backdrop-filter:none!important;backdrop-filter:none!important;filter:none!important;transform:none!important}
 body.glass .tools:not(.float),body.glass .tools.float{background:linear-gradient(180deg,rgba(255,255,255,.075) 0%,rgba(255,255,255,.028) 38%,rgba(255,255,255,.012) 100%),rgba(17,19,26,.94)}
+
+/* KING_TEMPLATES */
+#tplmenu{position:absolute;right:0;left:auto;top:36px;width:300px;padding:8px}
+#tplmenu .mh{font:600 10px Inter,sans-serif;letter-spacing:.14em;text-transform:uppercase;color:var(--mut);padding:4px 6px 8px}
+.tplrow{display:flex;align-items:center;gap:2px;border-radius:9px;padding:2px}.tplrow.on{background:rgba(139,92,246,.14)}
+.tplgo{flex:1;min-width:0;text-align:left;border:0;background:none;padding:7px 8px;font:500 13px Inter,sans-serif;color:var(--txt);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tplgo i{display:block;font:400 10.5px Inter,sans-serif;font-style:normal;color:var(--mut);margin-top:1px}.tplgo:hover{background:rgba(255,255,255,.05)}
+.tplrow .ib.sm{width:26px;height:26px;font-size:12px}
+.tplnone{padding:8px;color:var(--mut);font-size:12px}
+.tplnew{width:100%;margin-top:6px;border:1px dashed rgba(255,255,255,.16);background:rgba(255,255,255,.02);padding:8px;border-radius:9px;color:var(--txt);font:500 12.5px Inter,sans-serif}.tplnew:hover{border-color:rgba(139,92,246,.6)}

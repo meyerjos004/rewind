@@ -1633,6 +1633,7 @@ function kScore(A, D) { const ac = A.ac, t = ac.currentTime + 0.05; D = Math.max
     g.gain.setValueAtTime(0, T); g.gain.linearRampToValueAtTime(0.032, T + 0.08); g.gain.exponentialRampToValueAtTime(0.0008, T + 3.4); o.connect(lp); lp.connect(g); g.connect(A.M); g.connect(A.V); o.start(T); o.stop(T + 3.5); });
   [523.25, 659.25, 783.99, 1046.5].forEach((f, k) => wTone(A, f, T + 0.9 + k * 0.08, 1.2, 0.028)); }
 function splash(force) {   // launch intro (Settings → "Intro animation when the app opens")
+  try { if (!force && sessionStorage.getItem("kz-nointro")) { sessionStorage.removeItem("kz-nointro"); return; } } catch (e) {}
   if (document.getElementById("kintro") || (!force && (navigator.webdriver || prefs.splash === false))) return;
   introOn = true; const line = introLine(), chars = [...line], n = chars.length, D = Math.max(1.9, 0.55 + n * 0.042 + 0.55), t0 = performance.now();
   const el = document.createElement("div"); el.id = "kintro";
@@ -1994,6 +1995,33 @@ document.querySelectorAll(".vtab[data-view]").forEach((b) => (b.onclick = () => 
 $("start").addEventListener("change", () => { if (!pos.qty && !orders.length) { blind = null; blindUI(); loadReplay(); } });   // picking a date loads it right away
 $("go").onclick = () => { blind = null; blindUI(); loadReplay(); }; $("play").onclick = play; $("step").onclick = () => { pause(); $("stepsz").value === "candle" ? stepCandle() : stepFwd(); };
 $("blindbtn").onclick = () => { if (blind) { const d = blind.day; blind = null; blindUI(); toast("It was " + new Date(d + "T12:00:00Z").toUTCString().slice(0, 16)); } else mysteryDay(); }; $("back").onclick = () => { pause(); stepBack(); };
+/* KING_TEMPLATES (Nov 13): a template is a named snapshot of every setting (charts, chart settings, tools + favorites, layout, timeframes,
+   indicators, theme, glass, sounds, panels, trading rules, hotkeys...). Make as many as you want, switch, update, rename, delete.
+   Progress and personal history (XP, streaks, lessons, journal, strategies, last session) are never part of a template. */
+const TPL_SKIP = new Set(["templates", "tplOn", "credits", "quizDay", "quiz", "mxStreakDay", "mxStreak", "mxDone", "lockUntil", "xp", "toured", "welcomed", "lessons",
+  "lastSym", "lastStart", "stAcct", "seenSess", "psLater", "acct", "alertPause", "aplus", "strats", "lfPlan", "saved"]);
+function tplSnap() { const o = {}; for (const [k, v] of Object.entries(prefs)) if (!TPL_SKIP.has(k)) o[k] = v; return JSON.parse(JSON.stringify(o)); }
+function tplList() { if (!Array.isArray(prefs.templates)) prefs.templates = []; return prefs.templates; }
+function tplMenu() { const L = tplList(), on = prefs.tplOn;
+  $("tplmenu").innerHTML = `<div class="mh">Templates</div>` + (L.length ? L.map((t, i) => `<div class="tplrow${t.name === on ? " on" : ""}"><button class="tplgo" data-tpl="${i}" title="Switch to this template">${t.name === on ? "✓ " : ""}${esc(t.name)}<i>${new Date(t.at || Date.now()).toLocaleDateString()}</i></button><button class="ib sm" data-tplup="${i}" title="Save my current settings into this template">⟳</button><button class="ib sm" data-tplren="${i}" title="Rename">✎</button><button class="ib sm" data-tpldel="${i}" title="Delete">✕</button></div>`).join("") : `<div class="tplnone">No templates yet. Save your current setup to start.</div>`)
+    + `<button class="tplnew" data-tplnew="1">+ Save current setup as a template…</button>`; }
+async function tplPersist() { if (DEMO || !user) return; try { await sb.from("prefs").upsert({ user_id: user.id, data: prefs, updated_at: new Date().toISOString() }); } catch (e) {} }
+async function tplApply(i) { const t = tplList()[i]; if (!t) return; const keepT = tplList();
+  for (const [k, v] of Object.entries(JSON.parse(JSON.stringify(t.data)))) if (!TPL_SKIP.has(k)) prefs[k] = v;
+  prefs.templates = keepT; prefs.tplOn = t.name;
+  if (DEMO) { try { applyTheme(prefs.theme); document.body.classList.toggle("glass", prefs.glass !== false); fillSettings(); } catch (e) {} return toast(`Template "${t.name}" (demo: reload not saved)`); }
+  toast(`Switching to "${t.name}"…`); await tplPersist(); try { sessionStorage.setItem("kz-nointro", "1"); } catch (e) {} location.reload(); }
+$("tplbtn").onclick = () => { tplMenu(); $("tplmenu").classList.toggle("hidden"); };
+document.addEventListener("pointerdown", (e) => { if (!e.target.closest(".tplwrap")) $("tplmenu").classList.add("hidden"); });
+$("tplmenu").onclick = async (e) => { const b = e.target.closest("button"); if (!b) return; const L = tplList();
+  if (b.dataset.tplnew) { const name = (prompt("Name this template (e.g. NQ scalping, 4-chart SMT, Clean replay)") || "").trim().slice(0, 40); if (!name) return;
+    const ex = L.findIndex((t) => t.name.toLowerCase() === name.toLowerCase()); const rec = { name, at: Date.now(), data: tplSnap() };
+    if (ex >= 0) { if (!confirm(`"${L[ex].name}" already exists. Replace it with your current setup?`)) return; L[ex] = rec; } else L.push(rec);
+    prefs.tplOn = name; savePrefs(); tplMenu(); return toast(`Saved template "${name}"`); }
+  if (b.dataset.tpl != null) return tplApply(+b.dataset.tpl);
+  if (b.dataset.tplup != null) { const t = L[+b.dataset.tplup]; if (!t || !confirm(`Overwrite "${t.name}" with your current settings?`)) return; t.data = tplSnap(); t.at = Date.now(); prefs.tplOn = t.name; savePrefs(); tplMenu(); return toast(`Updated "${t.name}"`); }
+  if (b.dataset.tplren != null) { const t = L[+b.dataset.tplren]; const nm = (prompt("New name", t.name) || "").trim().slice(0, 40); if (!nm) return; if (prefs.tplOn === t.name) prefs.tplOn = nm; t.name = nm; savePrefs(); tplMenu(); return; }
+  if (b.dataset.tpldel != null) { const t = L[+b.dataset.tpldel]; if (!t || !confirm(`Delete template "${t.name}"? Your current settings stay as they are.`)) return; L.splice(+b.dataset.tpldel, 1); if (prefs.tplOn === t.name) prefs.tplOn = null; savePrefs(); tplMenu(); } };
 $("laybtn").onclick = () => $("laymenu").classList.toggle("hidden"); $("laymenu").onclick = (e) => { const b = e.target.closest(".lay"); if (b) { setLayout(b.dataset.lay); layMenu(); return; } const l = e.target.closest("[data-sl]"); if (l) return loadLayout(+l.dataset.sl);
   const d = e.target.closest("[data-sldel]"); if (d) { prefs.saved.splice(+d.dataset.sldel, 1); savePrefs(); layMenu(); return; } if (e.target.closest("#sl-save")) saveLayout(); };
 document.addEventListener("click", (e) => { const b = e.target.closest("#tools [data-tool], #favbar [data-tool]"); if (b) setTool(b.dataset.tool); });

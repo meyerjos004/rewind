@@ -239,6 +239,12 @@ async def main():
         await E("tgClose(); view('trade')"); await pg.click('.tgx[data-g="shapes"]'); await pg.wait_for_timeout(250)
         check("tool group pop-out is visible and on top", await E("(()=>{const f=document.querySelector('#tools .tfly[data-g=shapes]'); if(!f||f.classList.contains('hidden')) return false; const r=f.getBoundingClientRect(); const e=document.elementFromPoint(r.x+r.width/2,r.y+12); return !!(e&&e.closest('.tfly')) && $('tools').scrollWidth<= $('tools').clientWidth })()"))
         await E("tgClose()")
+        # KING_TEMPLATES: save every setting under a name, change things, switch back
+        await E("window._pr=window.prompt; window.prompt=()=>'My setup'; prefs.templates=[]; setLayout('1'); prefs.xp=123; $('tplbtn').click(); document.querySelector('[data-tplnew]').click(); window.prompt=window._pr"); await pg.wait_for_timeout(300)
+        check("template saved with every setting but no progress", await E("prefs.templates.length===1 && prefs.templates[0].name==='My setup' && prefs.templates[0].data.layout==='1' && !('xp' in prefs.templates[0].data) && !('templates' in prefs.templates[0].data)"))
+        await E("prefs.layout='4'; prefs.tfs[0]='15m'; tplApply(0)"); await pg.wait_for_timeout(300)
+        check("switching templates restores settings, keeps progress + the template list", await E("prefs.layout==='1' && prefs.xp===123 && prefs.templates.length===1 && prefs.tplOn==='My setup'"))
+        await E("setLayout('1')")
         # KING_STARTFX: launch intro (random line, no gate) + chart build animation
         ki = await E("(()=>{ splash(true); const k=document.getElementById('kintro'); return k ? [k.querySelector('.wwel').textContent, !!k.querySelector('button')] : null })()")
         check("launch intro shows a line, not Welcome", bool(ki) and 'WELCOME' not in ki[0].upper() and not ki[1], ki)
@@ -336,7 +342,7 @@ async def main():
         await pg.click("#railx"); await pg.wait_for_timeout(700); check("sidebar collapse button", await E("$('rail').offsetWidth<60"), await E("$('rail').offsetWidth+' '+prefs.railW"))
         await E("prefs.media={show:true,tab:'lib',op:100}; mediaUI()"); await pg.wait_for_timeout(300)
         r = await E("(()=>{const r=$('mgrip').querySelector('.mtitle').getBoundingClientRect();return [r.x+5,r.y+5]})()"); x0 = await E("$('media').getBoundingClientRect().left")
-        await pg.mouse.move(r[0], r[1]); await pg.mouse.down(); await pg.mouse.move(r[0]-200, r[1]+40, steps=6); await pg.mouse.up(); await pg.wait_for_timeout(250); xm = await E("$('media').getBoundingClientRect().left"); check("media window drags", abs(xm - (x0-200)) < 4, (x0, xm))
+        await pg.mouse.move(r[0], r[1]); await pg.mouse.down(); await pg.mouse.move(r[0]-200, r[1]+40, steps=6); await pg.mouse.up(); await pg.wait_for_timeout(250); xm = await E("$('media').getBoundingClientRect().left"); check("media window drags", abs(xm - (x0-200)) < 6, (x0, xm))
         r = await E("(()=>{const r=$('mres').getBoundingClientRect();return [r.x+8,r.y+8]})()"); w0 = await E("$('media').offsetWidth")
         await pg.mouse.move(r[0], r[1]); await pg.mouse.down(); await pg.mouse.move(r[0]+120, r[1]+60, steps=6); await pg.mouse.up(); check("media window resizes", await E("$('media').offsetWidth") > w0 + 100)
         await E("$('m-op').value=40; $('m-op').dispatchEvent(new Event('input'))"); await pg.wait_for_timeout(500); check("see-through slider works", await E("Math.abs(+getComputedStyle($('media')).opacity-0.4)<0.01 && $('m-opv').textContent==='40%'"))
