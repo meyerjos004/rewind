@@ -17,7 +17,29 @@ const notion2 = async (token: string, path: string, method = "GET", body?: unkno
   const r = await fetch("https://api.notion.com/v1/" + path, { method, headers: { Authorization: "Bearer " + token, "Notion-Version": "2025-09-03", "Content-Type": "application/json" }, body: body ? JSON.stringify(body) : undefined });
   const j = await r.json().catch(() => ({})); if (!r.ok) throw new Error(j.message || ("Notion " + r.status)); return j;
 };
-const title = (o: any) => { const p = o.properties || {}; for (const k in p) if (p[k].type === "title") return (p[k].title || []).map((t: any) => t.plain_text).join("") || "Untitled"; return (o.title || []).map((t: any) => t.plain_text).join("") || "Untitled"; };
+const notion3 = async (token: string, path: string, method = "GET", body?: unknown) => {   // 2026-03-11 API: views
+  const r = await fetch("https://api.notion.com/v1/" + path, { method, headers: { Authorization: "Bearer " + token, "Notion-Version": "2026-03-11", "Content-Type": "application/json" }, body: body ? JSON.stringify(body) : undefined });
+  const j = await r.json().catch(() => ({})); if (!r.ok) throw new Error(j.message || ("Notion " + r.status)); return j;
+};
+// KING_NOTIONCAL: the KAIROS backtest database opens as a month Calendar on Date (first tab). Added once; never fails a sync.
+const calDone = new Set<string>();
+async function ensureCalendar(token: string, dbId: string) {
+  if (!dbId || calDone.has(dbId)) return;
+  try {
+    const views = await notion3(token, `views?database_id=${dbId}`);
+    for (const v of views.results || []) { const full = await notion3(token, `views/${v.id}`); if (full.type === "calendar") { calDone.add(dbId); return; } }
+    const db = await notion3(token, `databases/${dbId}`); const dsid = db?.data_sources?.[0]?.id; if (!dsid) return;
+    const ds = await notion3(token, `data_sources/${dsid}`); const props = ds.properties || {};
+    const date = props["Date"]?.type === "date" ? props["Date"] : Object.values(props).find((p: any) => p.type === "date") as any; if (!date) return;
+    const show = ["P&L", "Side"].map((n) => props[n]).filter(Boolean).map((p: any) => ({ property_id: p.id, visible: true }));
+    await notion3(token, "views", "POST", { database_id: dbId, data_source_id: dsid, name: "Calendar", type: "calendar", position: { type: "start" },
+      configuration: { type: "calendar", date_property_id: date.id, properties: show, view_range: "month", show_weekends: true } });
+    calDone.add(dbId);
+  } catch (e) { console.log("calendar view skipped:", (e as Error).message); }
+}
+// KING_NOTIONPICK: database/data-source schemas have `title: {}` (an object, not rich text), which crashed `dbs`. Only join real arrays.
+const rt = (a: any) => Array.isArray(a) ? a.map((t: any) => t.plain_text).join("") : "";
+const title = (o: any) => { if (o.object === "database" || o.object === "data_source") return rt(o.title) || "Untitled"; const p = o.properties || {}; for (const k in p) if (p[k]?.type === "title" && Array.isArray(p[k].title)) return rt(p[k].title) || "Untitled"; return rt(o.title) || "Untitled"; };
 const fmtNY = (t: number) => new Date(t * 1000).toLocaleString("sv-SE", { timeZone: "America/New_York" }).slice(0, 16);
 const plain = (v: any): string => {
   if (!v) return "";
@@ -131,9 +153,10 @@ Deno.serve(async (req) => {
         Entry: { number: {} }, Exit: { number: {} }, Stop: { number: {} }, Target: { number: {} }, R: { number: {} }, "P&L": { number: { format: "dollar" } }, Fees: { number: { format: "dollar" } },
         Outcome: { select: {} }, Notes: { rich_text: {} }, Source: { select: {} } } });
       await SB.from("notion_links").update({ db_id: db.id, db_url: db.url, updated_at: new Date().toISOString() }).eq("user_id", user.id);
+      await ensureCalendar(link.token, db.id);
       return J({ ok: true, db_url: db.url });
     }
-    if (act === "sync") { if (!link.db_id) return J({ error: "Pick a page for the backtest database first" }, 400); return J({ ok: true, synced: await syncTrades(user.id, link, body.ids) }); }
+    if (act === "sync") { if (!link.db_id) return J({ error: "Pick a page for the backtest database first" }, 400); const synced = await syncTrades(user.id, link, body.ids); await ensureCalendar(link.token, link.db_id); return J({ ok: true, synced }); }
     if (act === "auto") { await SB.from("notion_links").update({ auto_sync: !!body.on }).eq("user_id", user.id); return J({ ok: true }); }
     if (act === "disconnect") { await SB.from("notion_links").delete().eq("user_id", user.id); return J({ ok: true }); }
     return J({ error: "unknown action" }, 400);
