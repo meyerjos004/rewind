@@ -614,3 +614,6 @@ body.glass .tools:not(.float),body.glass .tools.float{background:linear-gradient
 .tplrow .ib.sm{width:26px;height:26px;font-size:12px}
 .tplnone{padding:8px;color:var(--mut);font-size:12px}
 .tplnew{width:100%;margin-top:6px;border:1px dashed rgba(255,255,255,.16);background:rgba(255,255,255,.02);padding:8px;border-radius:9px;color:var(--txt);font:500 12.5px Inter,sans-serif}.tplnew:hover{border-color:rgba(139,92,246,.6)}
+
+/* KING_CONN */
+.conn{display:flex;flex-direction:column;gap:8px;padding:10px 0;border-top:1px solid rgba(255,255,255,.06)}.conn:first-of-type{border-top:0}.conn>b{font-size:14px}

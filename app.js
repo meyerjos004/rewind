@@ -1546,12 +1546,12 @@ function exportCsv() {
 /* ---------------- Notion ---------------- */
 async function notionUI() {
   const show = (id) => ["n-connect", "n-setup", "n-ready"].forEach((x) => $(x).classList.toggle("hidden", x !== id));
-  try { const s = await notion("status"); $("n-oauth").classList.toggle("hidden", !s.oauth); $("n-tokenbox").open = !s.oauth;
-    if (!s.connected) { $("n-state").textContent = "Not connected"; notionAuto = false; return show("n-connect"); }
+  try { const s = await notion("status"); $("n-oauth").classList.remove("hidden");
+    if (!s.connected) { $("n-state").textContent = ""; notionAuto = false; return show("n-connect"); }
     $("n-state").innerHTML = "Connected to <b>" + (s.workspace || "Notion") + "</b>";
     if (!s.db) { show("n-setup"); const r = await notion("pages"); $("n-pages").innerHTML = r.pages.length ? r.pages.map((p) => `<option value="${p.id}">${p.title}</option>`).join("") : "<option value=''>No pages shared yet. Add your integration to a page first</option>"; return; }
     show("n-ready"); $("n-open").href = s.db_url; $("n-auto").checked = s.auto_sync; notionAuto = s.auto_sync;
-  } catch (e) { $("n-state").textContent = DEMO ? "Not connected (demo)" : "Notion: " + e.message; show("n-connect"); $("n-tokenbox").open = true; }
+  } catch (e) { $("n-state").textContent = DEMO ? "Not connected (demo)" : "Notion: " + e.message; show("n-connect"); }
 }
 const nmsg = (m) => ($("n-msg").textContent = m);
 
@@ -2156,6 +2156,7 @@ $("j-notion").onclick = async () => { $("j-msg").textContent = "Syncing…"; try
 $("jrows").addEventListener("change", (e) => { if (e.target.classList.contains("note")) db.note(e.target.closest("tr").dataset.id, e.target.value); });
 $("jrows").addEventListener("click", (e) => { if (e.target.classList.contains("cardbtn")) { const t = jT.find((x) => x.id === e.target.closest("tr").dataset.id); if (t) shareCard(t, false); return; } if (!e.target.classList.contains("sharebtn")) return; const t = jT.find((x) => x.id === e.target.closest("tr").dataset.id); if (t) shareTrade(t); });
 $("jrows").addEventListener("click", async (e) => { if (!e.target.classList.contains("shotlink")) return; e.preventDefault(); const t = jT.find((x) => x.id === e.target.closest("tr").dataset.id); const { data } = await sb.storage.from("shots").createSignedUrl(t.shots[0], 300); if (data) window.open(data.signedUrl, "_blank"); });
+document.querySelectorAll(".soonbtn").forEach((b) => (b.onclick = () => toast(b.dataset.svc + " sign-in is coming soon")));
 $("n-oauth").onclick = async () => { try { const r = await notion("oauth_url"); location.href = r.url; } catch (e) { nmsg(e.message); } };
 $("n-save").onclick = async () => { nmsg("Checking token…"); try { await notion("save_token", { token: $("n-token").value }); $("n-token").value = ""; nmsg(""); notionUI(); } catch (e) { nmsg(e.message); } };
 $("n-create").onclick = async () => { const id = $("n-pages").value; if (!id) return nmsg("Share a page with your integration first, then reload"); nmsg("Creating…"); try { await notion("setup", { page_id: id }); nmsg("Journal created. New trades will show up there."); notionUI(); } catch (e) { nmsg(e.message); } };

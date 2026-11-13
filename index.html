@@ -223,15 +223,11 @@
       </div></section>
       <section class="setg" id="sg-conn"><h2 class="seth">Connections</h2><div class="setgrid">
       <div class="setc" id="notioncard">
-        <h3>Notion</h3>
-        <p class="muted small">Send every closed trade to your own Notion journal. Your Notion stays yours: nobody else's trades go in, and nobody else can see yours.</p>
-        <div id="n-state" class="small">Checking…</div>
+        <h3>Connections</h3>
+        <div class="conn"><b>Connect Notion</b><div id="n-state" class="tiny muted"></div>
         <div id="n-connect" class="hidden">
-          <button id="n-oauth" class="primary wide hidden">Connect with Notion</button>
-          <details id="n-tokenbox"><summary class="small">Connect with an integration token</summary>
-            <ol class="tiny muted"><li>Go to notion.so/profile/integrations → New integration (Internal) → copy the secret.</li><li>Open the Notion page you want the journal in → ••• → Connections → add your integration.</li><li>Paste the secret here.</li></ol>
-            <div class="row"><input id="n-token" type="password" placeholder="ntn_…"><button id="n-save">Connect</button></div>
-          </details>
+          <button id="n-oauth" class="primary wide">Connect Notion</button>
+          <details id="n-tokenbox" class="hidden"><summary class="small">Token</summary><div class="row"><input id="n-token" type="password" placeholder="ntn_…"><button id="n-save">Connect</button></div></details>
         </div>
         <div id="n-setup" class="hidden"><label>Put the "Rewind Journal" database in<select id="n-pages"></select></label><button id="n-create" class="primary">Create journal</button></div>
         <div id="n-ready" class="hidden">
@@ -239,7 +235,9 @@
           <div class="row"><a id="n-open" target="_blank" rel="noopener">Open my Notion journal ↗</a></div>
           <div class="row"><button id="n-sync" class="ghost">Sync now</button><button id="n-off" class="ghost">Disconnect</button></div>
         </div>
-        <p id="n-msg" class="small muted"></p>
+        <p id="n-msg" class="small muted"></p></div>
+        <div class="conn"><b>Connect Spotify</b><button class="primary wide soonbtn" data-svc="Spotify">Connect Spotify</button></div>
+        <div class="conn"><b>Connect YouTube</b><button class="primary wide soonbtn" data-svc="YouTube">Connect YouTube</button></div>
       </div>
       </div></section>
     </div>
