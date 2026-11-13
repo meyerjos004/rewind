@@ -601,3 +601,6 @@ a.gdl{background:linear-gradient(180deg,#a78bfa,#8b5cf6);color:#0b0614!important
 .tools .tool{height:clamp(30px,4.4vh,42px);width:clamp(36px,4.4vh,44px)}.tools .tool svg{width:clamp(18px,2.6vh,25px);height:clamp(18px,2.6vh,25px)}
 .tools .tg{width:auto}.tools .tsep{margin:clamp(2px,.5vh,6px) 0}
 .tools{gap:clamp(0px,.2vh,2px);padding-top:clamp(4px,1vh,10px)!important;padding-bottom:clamp(4px,1vh,10px)!important}
+/* KING_TOOLS hotfix 3 (Nov 13): backdrop blur on the tool rail made its pop-out menus position inside the rail (clipped / scrolling). The rail keeps the glass look without the blur so menus float free again */
+.tools,.tools.float,body.glass .tools:not(.float),body.glass .tools.float{-webkit-backdrop-filter:none!important;backdrop-filter:none!important;filter:none!important;transform:none!important}
+body.glass .tools:not(.float),body.glass .tools.float{background:linear-gradient(180deg,rgba(255,255,255,.075) 0%,rgba(255,255,255,.028) 38%,rgba(255,255,255,.012) 100%),rgba(17,19,26,.94)}

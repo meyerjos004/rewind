@@ -235,6 +235,10 @@ async def main():
         check("SMT only uses closed candles", await E("(()=>{const z=smtFind('5m',300); const now=bucket(loc(nowT()),300); return z.every(s=>s.t2<now)})()"))
         await pg.screenshot(path="/home/claude/shot/smt.png")
         await E("Object.keys(smtCfg()).forEach(k=>smtCfg()[k]=false); repaintAll()")
+        # KING_TOOLS: corner triangle opens a visible pop-out that floats outside the rail (no clipping/scroll)
+        await E("tgClose(); view('trade')"); await pg.click('.tgx[data-g="shapes"]'); await pg.wait_for_timeout(250)
+        check("tool group pop-out is visible and on top", await E("(()=>{const f=document.querySelector('#tools .tfly[data-g=shapes]'); if(!f||f.classList.contains('hidden')) return false; const r=f.getBoundingClientRect(); const e=document.elementFromPoint(r.x+r.width/2,r.y+12); return !!(e&&e.closest('.tfly')) && $('tools').scrollWidth<= $('tools').clientWidth })()"))
+        await E("tgClose()")
         # KING_STARTFX: launch intro (random line, no gate) + chart build animation
         ki = await E("(()=>{ splash(true); const k=document.getElementById('kintro'); return k ? [k.querySelector('.wwel').textContent, !!k.querySelector('button')] : null })()")
         check("launch intro shows a line, not Welcome", bool(ki) and 'WELCOME' not in ki[0].upper() and not ki[1], ki)
