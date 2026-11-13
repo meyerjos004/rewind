@@ -13,6 +13,10 @@ const notion = async (token: string, path: string, method = "GET", body?: unknow
   const r = await fetch("https://api.notion.com/v1/" + path, { method, headers: { Authorization: "Bearer " + token, "Notion-Version": NV, "Content-Type": "application/json" }, body: body ? JSON.stringify(body) : undefined });
   const j = await r.json().catch(() => ({})); if (!r.ok) throw new Error(j.message || ("Notion " + r.status)); return j;
 };
+const notion2 = async (token: string, path: string, method = "GET", body?: unknown) => {   // same, on the 2025-09-03 API (data sources)
+  const r = await fetch("https://api.notion.com/v1/" + path, { method, headers: { Authorization: "Bearer " + token, "Notion-Version": "2025-09-03", "Content-Type": "application/json" }, body: body ? JSON.stringify(body) : undefined });
+  const j = await r.json().catch(() => ({})); if (!r.ok) throw new Error(j.message || ("Notion " + r.status)); return j;
+};
 const title = (o: any) => { const p = o.properties || {}; for (const k in p) if (p[k].type === "title") return (p[k].title || []).map((t: any) => t.plain_text).join("") || "Untitled"; return (o.title || []).map((t: any) => t.plain_text).join("") || "Untitled"; };
 const fmtNY = (t: number) => new Date(t * 1000).toLocaleString("sv-SE", { timeZone: "America/New_York" }).slice(0, 16);
 const plain = (v: any): string => {
@@ -93,7 +97,12 @@ Deno.serve(async (req) => {
     if (act === "dbs") {   // databases the user shared, minus KAIROS's own backtest database (never import our own writes)
       const r = await notion(link.token, "search", "POST", { filter: { property: "object", value: "database" }, page_size: 100 });
       const own = (link.db_id || "").replace(/-/g, "");
-      return J({ dbs: (r.results || []).filter((d: any) => d.id.replace(/-/g, "") !== own).map((d: any) => ({ id: d.id, title: title(d) })) });
+      const list = (r.results || []).map((d: any) => ({ id: d.id, title: title(d) }));
+      try {   // newer databases only show up as data sources on the 2025-09-03 API; list them by their parent database
+        const r2 = await notion2(link.token, "search", "POST", { filter: { property: "object", value: "data_source" }, page_size: 100 });
+        for (const d of r2.results || []) { const pid = d.parent?.database_id || d.database_parent?.database_id; if (pid && !list.some((x: any) => x.id.replace(/-/g, "") === pid.replace(/-/g, ""))) list.push({ id: pid, title: title(d) }); }
+      } catch (_) { /* older workspaces: the first list is enough */ }
+      return J({ dbs: list.filter((d: any) => d.id.replace(/-/g, "") !== own) });
     }
     if (act === "set_source") {
       const id = String(body.db_id || ""); if (id && id.replace(/-/g, "") === (link.db_id || "").replace(/-/g, "")) return J({ error: "That's the KAIROS backtest database. Pick your real-trade journal." }, 400);
@@ -102,9 +111,15 @@ Deno.serve(async (req) => {
     }
     if (act === "import") {   // read-only: never writes to the user's journal
       if (!link.source_db_id) return J({ error: "Pick your trade journal first" }, 400);
-      const out: any[] = []; let cursor: string | undefined;
+      const out: any[] = []; let cursor: string | undefined; let dsid: string | undefined;
       for (let i = 0; i < 10; i++) {
-        const r = await notion(link.token, `databases/${link.source_db_id}/query`, "POST", { page_size: 100, start_cursor: cursor, sorts: [{ timestamp: "created_time", direction: "descending" }] });
+        const q = { page_size: 100, start_cursor: cursor, sorts: [{ timestamp: "created_time", direction: "descending" }] };
+        let r: any;
+        try { r = await notion(link.token, `databases/${link.source_db_id}/query`, "POST", q); }
+        catch (e) {   // newer multi-source databases (Notion API 2025-09-03): query the first data source instead
+          if (!dsid) { const db = await notion2(link.token, `databases/${link.source_db_id}`); dsid = db?.data_sources?.[0]?.id; if (!dsid) throw e; }
+          r = await notion2(link.token, `data_sources/${dsid}/query`, "POST", q);
+        }
         for (const pg of r.results || []) out.push(mapRow(pg));
         if (!r.has_more) break; cursor = r.next_cursor;
       }
