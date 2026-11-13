@@ -23,7 +23,7 @@ let prefs = { bal: 50000, dll: 1000, ptg: 0, act: "block", mdd: 2000, fee: 4.5, 
 
 // KING_CS2 settings defaults (see the Chart settings block near the end)
 const CS_DEF = { prevClr: false, body: true, bord: false, bu: "#2bd4a0", bd: "#ff6b7a", wick: true, wu: "", wd: "", prec: "def", title: true, titleK: "full", mstat: true, vals: true, chg: false, lbg: false, lbga: 40,
-  cd: false, last: "vl", pdc: "h", pdcc: "#9aa4b2", hl: "h", hlc: "#c4b5fd", ba: "h", bidc: "#3b82f6", askc: "#ff6b7a", dow: false, df: "tv", hf: "24", keepL: false,
+  cd: false, last: "vl", pdc: "h", pdcc: "#9aa4b2", hl: "h", hlc: "#c4b5fd", ba: "h", bidc: "#3b82f6", askc: "#ff6b7a", dow: false, df: "tv", hf: "24", keepC: true,
   bgk: "none", bg1: "#0b0e14", bg2: "#151a24", gridc: "#ffffff", brk: false, brkc: "#7f8a9c", xc: "#ffffff", xs: "2", wm: true, txc: "#7f8a9c", txs: "11", lnc: "#1c212b", mt: 10, mb: 10, mr: 12,
   oneClick: true, pos: true, rev: true, pnl: true, pnlp: "money", pnlb: "money", exm: true, exl: false, ext: true };
 let csTmp = null, csSnap = null; const execs = [], profs = {};
@@ -221,7 +221,22 @@ function makePane(i) {
 function setActive(i) { active = i; const ps = paneSym(i); if (ps !== sym && X[ps] && swapTo(ps)) { $("sym").value = sym; drawOrders(); try { refresh(); } catch (e) {} panes.forEach(label); } panes.forEach((p) => p.el.classList.toggle("active", p.i === i && panes.length > 1)); tfUI(); scaleUI(); }
 function label(p) { const tf = prefs.tfs[p.i] || "5m", s = paneSym(p); p.el.querySelector(".lname").textContent = `${s} · ${tf} · CME`; p.el.classList.toggle("tradesym", s === sym && panes.length > 1 && new Set(panes.map(paneSym)).size > 1); p.el.querySelector(".wmark").textContent = `CME ${s} ${tf}`; }
 function tfUI() { const cur = prefs.tfs[active]; $("tfbar").innerHTML = TFS.filter(([n]) => features.sec15 !== false || !n.endsWith("s")).map(([n]) => `<button class="tf ${n === cur ? "on" : ""}" data-tf="${n}">${n === "1D" ? "D" : n}</button>`).join(""); }
-async function setPaneTf(i, tf, noSync) { const p = panes[i]; if (!p) return; let keepT = null; try { if (csG().keepL) { const vr = p.chart.timeScale().getVisibleRange(); keepT = vr && vr.from; } } catch (e) {} prefs.tfs[i] = tf; if (!noSync && prefs.sync && prefs.sync.int) for (const q of panes) if (q.i !== i) { prefs.tfs[q.i] = tf; label(q); rebuildPane(q); } savePrefs(); tfUI(); label(p); if (lock15 || panes.some((q) => paneSec(q.i) < 60)) await ensure15(); else need15 = false; rebuildPane(p); drawOrders(); drawOpens(); csApply(p); if (keepT != null) setTimeout(() => { try { const ts = p.chart.timeScale(), k = p.candles.findIndex((c) => c.time >= keepT), n = ts.getVisibleLogicalRange(); if (k >= 0 && n) ts.setVisibleLogicalRange({ from: k, to: k + (n.to - n.from) }); } catch (e) {} }, 30); }
+// KING_TFCENTER (Josh, Nov 13): changing interval keeps your place. The moment in the middle of the chart stays in the
+// middle (same width in bars), like TradingView. If you were parked at the live edge you stay there. Settings toggle: keepC.
+function tfAnchor(p) { try { const n = p.candles.length, r = p.chart.timeScale().getVisibleLogicalRange(); if (!n || !r) return null; const w = r.to - r.from;
+  if (r.to >= n - 1) return { live: true, w, off: r.to - (n - 1) };   // newest bar on screen: stay pinned to it
+  const c = (r.from + r.to) / 2, k = Math.max(0, Math.min(n - 1, Math.round(c))); return { t: p.candles[k].time + p.sec / 2, w }; } catch (e) { return null; } }
+function tfRestore(p, a) { if (!a || p.dead || !p.candles.length) return; try { const ts = p.chart.timeScale(), n = p.candles.length;
+  if (a.live) { const to = n - 1 + Math.max(0, a.off); ts.setVisibleLogicalRange({ from: to - a.w, to }); return; }
+  let lo = 0, hi = n - 1, k = 0; while (lo <= hi) { const m = (lo + hi) >> 1; if (p.candles[m].time <= a.t) { k = m; lo = m + 1; } else hi = m - 1; }   // the new candle covering that time
+  ts.setVisibleLogicalRange({ from: k - a.w / 2, to: k + a.w / 2 }); } catch (e) {} }
+async function setPaneTf(i, tf, noSync) { const p = panes[i]; if (!p) return; const keep = csG().keepC !== false;
+  const qs = [p].concat(!noSync && prefs.sync && prefs.sync.int ? panes.filter((q) => q.i !== i) : []), anc = new Map(qs.map((q) => [q, keep ? tfAnchor(q) : null]));
+  for (const q of qs) { prefs.tfs[q.i] = tf; label(q); } savePrefs(); tfUI();
+  if (lock15 || panes.some((q) => paneSec(q.i) < 60)) await ensure15(); else need15 = false;
+  for (const q of qs) if (!q.dead) rebuildPane(q); drawOrders(); drawOpens(); csApply(p);
+  // re-centre after the bars are built (not on a timer); other charts first so the active one's time sync wins
+  const put = () => { for (const q of qs.slice(1).concat(p)) tfRestore(q, anc.get(q)); }; put(); requestAnimationFrame(put); }
 const livAuto = (p) => { try { return p.chart.priceScale("right").options().autoScale !== false; } catch (e) { return p.auto !== false; } };   // a manual drag on the price axis turns auto-fit off; respect it
 function scaleUI() { const p = panes[active]; if (!p) return; p.auto = livAuto(p); $("sc-pct").classList.toggle("on", p.mode === 2); $("sc-log").classList.toggle("on", p.mode === 1); $("sc-auto").classList.toggle("on", p.auto); }
 function setScale(k) { const p = panes[active]; if (!p) return; p.auto = livAuto(p); if (k === "auto") p.auto = !p.auto; else { const m = k === "pct" ? 2 : 1; p.mode = p.mode === m ? 0 : m; } p.chart.priceScale("right").applyOptions({ mode: p.mode, autoScale: p.auto }); scaleUI(); paint(p); }
@@ -2359,7 +2374,7 @@ function csMarks(p) { const C = csG(); if (!C.exm) { if (p._mk) { p.series.setMa
   .filter((m) => p.candles.length && m.time <= p.candles[p.candles.length - 1].time).sort((a, b) => a.time - b.time); const key = mk.length + "|" + C.exl + "|" + p.sec; if (p._mkk === key) return; p._mkk = key; p._mk = mk.length; try { p.series.setMarkers(mk); } catch (e) {} }
 // the settings window
 const CSF = { "cs-prevclr": "prevClr", "cs-body": "body", "cs-bord": "bord", "cs-bu": "bu", "cs-bd": "bd", "cs-wick": "wick", "cs-wu": "wu", "cs-wd": "wd", "cs-prec": "prec", "cs-title": "title", "cs-titlek": "titleK", "cs-mstat": "mstat", "cs-vals": "vals", "cs-chg": "chg", "cs-lbg": "lbg", "cs-lbga": "lbga",
-  "cs-cd": "cd", "cs-last": "last", "cs-pdc": "pdc", "cs-pdcc": "pdcc", "cs-hl": "hl", "cs-hlc": "hlc", "cs-ba": "ba", "cs-bidc": "bidc", "cs-askc": "askc", "cs-dow": "dow", "cs-df": "df", "cs-hf": "hf", "cs-keepl": "keepL",
+  "cs-cd": "cd", "cs-last": "last", "cs-pdc": "pdc", "cs-pdcc": "pdcc", "cs-hl": "hl", "cs-hlc": "hlc", "cs-ba": "ba", "cs-bidc": "bidc", "cs-askc": "askc", "cs-dow": "dow", "cs-df": "df", "cs-hf": "hf", "cs-keepl": "keepC",
   "cs-bgk": "bgk", "cs-bg1": "bg1", "cs-bg2": "bg2", "cs-gridc": "gridc", "cs-brk": "brk", "cs-brkc": "brkc", "cs-xc": "xc", "cs-xs": "xs", "cs-wm": "wm", "cs-txc": "txc", "cs-txs": "txs", "cs-lnc": "lnc", "cs-mt": "mt", "cs-mb": "mb", "cs-mr": "mr",
   "cs-oneclick": "oneClick", "cs-pos": "pos", "cs-rev": "rev", "cs-pnl": "pnl", "cs-pnlp": "pnlp", "cs-pnlb": "pnlb", "cs-exm": "exm", "cs-exl": "exl", "cs-ext": "ext" };
 function csFill() { const C = csG(); for (const [id, k] of Object.entries(CSF)) { const el = $(id); if (!el) continue; if (el.type === "checkbox") el.checked = !!C[k]; else el.value = C[k] === "" && el.type === "color" ? (k[1] === "u" ? prefs.up : prefs.dn) : C[k]; }
