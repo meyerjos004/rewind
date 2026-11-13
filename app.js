@@ -1544,13 +1544,40 @@ function exportCsv() {
 }
 
 /* ---------------- Notion ---------------- */
+/* KING_NOTION2: real trades IN from the user's own journal (read-only), backtest trades OUT to KAIROS's own database */
+let realTrades = []; const RKEY = () => "kz-real-" + (user ? user.id : "x");
+try { realTrades = JSON.parse(localStorage.getItem(RKEY()) || "[]"); } catch (e) {}
+const symRoot = (s) => String(s || "").toUpperCase().replace(/^M(?=NQ|ES|YM|RTY|GC|CL)/, "");
+function realUnix(r) {
+  if (r.date && r.date.includes("T")) return Math.floor(Date.parse(r.date) / 1000);
+  const d = r.date || (r.created || "").slice(0, 10); if (!d) return null;
+  let h = 9, mi = 30; const m = String(r.time || "").match(/(\d{1,2}):(\d{2})\s*(am|pm)?/i);
+  if (m) { h = m[3] ? +m[1] % 12 + (m[3].toLowerCase() === "pm" ? 12 : 0) : +m[1]; mi = +m[2]; }
+  const naive = Date.UTC(+d.slice(0, 4), +d.slice(5, 7) - 1, +d.slice(8, 10), h, mi) / 1000; return naive - nyOffset(naive);
+}
+async function nImportUI(s) {
+  try { realTrades = JSON.parse(localStorage.getItem(RKEY()) || "[]"); } catch (e) {}
+  $("n-import").classList.remove("hidden"); $("n-showreal").checked = prefs.showReal !== false;
+  const r = await notion("dbs"); const sel = $("n-src");
+  sel.innerHTML = '<option value="">Pick your trade journal…</option>' + r.dbs.map((d) => `<option value="${d.id}"${d.id === s.source ? " selected" : ""}>${d.title.replace(/</g, "&lt;")}</option>`).join("");
+  if (!r.dbs.length) $("n-impinfo").textContent = "No databases shared yet. In Notion, open your trades database → ••• → Connections → add KAIROS.";
+  else if (s.source) { $("n-impinfo").textContent = realTrades.length + " real trades loaded from " + (s.source_title || "your journal"); if (Date.now() - (+localStorage.getItem(RKEY() + "-t") || 0) > 30 * 60e3) nImport(true); }
+}
+async function nImport(quiet) {
+  if (!quiet) $("n-impinfo").textContent = "Importing…";
+  try { const r = await notion("import"); realTrades = r.trades.map((x) => ({ t: realUnix(x), sym: symRoot(x.symbol), side: x.side, entry: x.entry, exit: x.exit, pnl: x.pnl, qty: x.qty, title: x.title, url: x.url })).filter((x) => x.t);
+    localStorage.setItem(RKEY(), JSON.stringify(realTrades)); localStorage.setItem(RKEY() + "-t", Date.now());
+    $("n-impinfo").textContent = realTrades.length + " real trades loaded" + (r.trades.length > realTrades.length ? ` (${r.trades.length - realTrades.length} skipped: no date)` : ""); panes.forEach((p) => p && (p._mkk = null));
+  } catch (e) { $("n-impinfo").textContent = "Import: " + e.message; }
+}
 async function notionUI() {
   const show = (id) => ["n-connect", "n-setup", "n-ready"].forEach((x) => $(x).classList.toggle("hidden", x !== id));
   try { const s = await notion("status"); $("n-oauth").classList.remove("hidden");
     if (!s.connected) { $("n-state").textContent = ""; notionAuto = false; return show("n-connect"); }
     $("n-state").innerHTML = "Connected to <b>" + (s.workspace || "Notion") + "</b>";
-    if (!s.db) { show("n-setup"); const r = await notion("pages"); $("n-pages").innerHTML = r.pages.length ? r.pages.map((p) => `<option value="${p.id}">${p.title}</option>`).join("") : "<option value=''>No pages shared yet. Add your integration to a page first</option>"; return; }
+    if (!s.db) { nImportUI(s).catch(() => {}); show("n-setup"); const r = await notion("pages"); $("n-pages").innerHTML = r.pages.length ? r.pages.map((p) => `<option value="${p.id}">${p.title}</option>`).join("") : "<option value=''>No pages shared yet. Add your integration to a page first</option>"; return; }
     show("n-ready"); $("n-open").href = s.db_url; $("n-auto").checked = s.auto_sync; notionAuto = s.auto_sync;
+    nImportUI(s).catch(() => {});
   } catch (e) { $("n-state").textContent = DEMO ? "Not connected (demo)" : "Notion: " + e.message; show("n-connect"); }
 }
 const nmsg = (m) => ($("n-msg").textContent = m);
@@ -2157,6 +2184,9 @@ $("jrows").addEventListener("change", (e) => { if (e.target.classList.contains("
 $("jrows").addEventListener("click", (e) => { if (e.target.classList.contains("cardbtn")) { const t = jT.find((x) => x.id === e.target.closest("tr").dataset.id); if (t) shareCard(t, false); return; } if (!e.target.classList.contains("sharebtn")) return; const t = jT.find((x) => x.id === e.target.closest("tr").dataset.id); if (t) shareTrade(t); });
 $("jrows").addEventListener("click", async (e) => { if (!e.target.classList.contains("shotlink")) return; e.preventDefault(); const t = jT.find((x) => x.id === e.target.closest("tr").dataset.id); const { data } = await sb.storage.from("shots").createSignedUrl(t.shots[0], 300); if (data) window.open(data.signedUrl, "_blank"); });
 document.querySelectorAll(".soonbtn").forEach((b) => (b.onclick = () => toast(b.dataset.svc + " sign-in is coming soon")));
+$("n-src").onchange = async () => { const o = $("n-src").selectedOptions[0]; try { await notion("set_source", { db_id: $("n-src").value, title: o ? o.textContent : "" }); if ($("n-src").value) nImport(); } catch (e) { $("n-impinfo").textContent = e.message; } };
+$("n-imp").onclick = () => nImport();
+$("n-showreal").onchange = () => { prefs.showReal = $("n-showreal").checked; savePrefs && savePrefs(); panes.forEach((p) => p && (p._mkk = null)); };
 $("n-oauth").onclick = async () => { try { const r = await notion("oauth_url"); location.href = r.url; } catch (e) { nmsg(e.message); } };
 $("n-save").onclick = async () => { nmsg("Checking token…"); try { await notion("save_token", { token: $("n-token").value }); $("n-token").value = ""; nmsg(""); notionUI(); } catch (e) { nmsg(e.message); } };
 $("n-create").onclick = async () => { const id = $("n-pages").value; if (!id) return nmsg("Share a page with your integration first, then reload"); nmsg("Creating…"); try { await notion("setup", { page_id: id }); nmsg("Journal created. New trades will show up there."); notionUI(); } catch (e) { nmsg(e.message); } };
@@ -2399,8 +2429,11 @@ function csLines(p) { if (!p || p.dead || !p.candles.length) return; const C = c
       cd.textContent = (h ? h + ":" + String(m).padStart(2, "0") : m) + ":" + String(sx).padStart(2, "0"); } else cd.textContent = ""; }
   if (C.chg) { const o = p.el.querySelector(".ohlc"); if (o && !o.innerHTML && p.candles.length > 1) { const pv = p.candles[p.candles.length - 2].close, ch = last.close - pv; o.innerHTML = `<b class="${ch >= 0 ? "pos-up" : "pos-dn"}">${ch >= 0 ? "+" : ""}${px2(ch)} (${((ch / pv) * 100).toFixed(2)}%)</b>`; } }
   csMarks(p); }
-function csMarks(p) { const C = csG(); if (!C.exm) { if (p._mk) { p.series.setMarkers([]); p._mk = 0; } return; } const s = paneSym(p), mk = execs.filter((x) => x.sym === s).map((x) => ({ time: bucket(loc(x.t), p.sec), position: x.side > 0 ? "belowBar" : "aboveBar", color: x.side > 0 ? "#2bd4a0" : "#ff6b7a", shape: x.side > 0 ? "arrowUp" : "arrowDown", text: C.exl ? `${x.side > 0 ? "B" : "S"} ${x.qty} @ ${px2(x.price)}` : "" }))
-  .filter((m) => p.candles.length && m.time <= p.candles[p.candles.length - 1].time).sort((a, b) => a.time - b.time); const key = mk.length + "|" + C.exl + "|" + p.sec; if (p._mkk === key) return; p._mkk = key; p._mk = mk.length; try { p.series.setMarkers(mk); } catch (e) {} }
+function csMarks(p) { const C = csG(); const s = paneSym(p), last = p.candles.length ? p.candles[p.candles.length - 1].time : -1;
+  const mk = !C.exm ? [] : execs.filter((x) => x.sym === s).map((x) => ({ time: bucket(loc(x.t), p.sec), position: x.side > 0 ? "belowBar" : "aboveBar", color: x.side > 0 ? "#2bd4a0" : "#ff6b7a", shape: x.side > 0 ? "arrowUp" : "arrowDown", text: C.exl ? `${x.side > 0 ? "B" : "S"} ${x.qty} @ ${px2(x.price)}` : "" })).filter((m) => m.time <= last);
+  if (prefs.showReal !== false && realTrades.length) for (const r of realTrades) { if (r.sym && r.sym !== symRoot(s)) continue; const lt = loc(r.t), dayEnd = Math.floor(lt / 86400) * 86400 + 17 * 3600; if (dayEnd > last) continue;
+    mk.push({ time: bucket(lt, p.sec), position: r.side < 0 ? "aboveBar" : "belowBar", color: "#f5c542", shape: "circle", text: "Real" + (r.side ? (r.side > 0 ? " L" : " S") : "") + (r.pnl != null ? " " + (r.pnl >= 0 ? "+" : "") + Math.round(r.pnl) : "") }); }
+  mk.sort((a, b) => a.time - b.time); const key = mk.length + "|" + C.exl + "|" + p.sec; if (p._mkk === key) return; p._mkk = key; p._mk = mk.length; try { p.series.setMarkers(mk); } catch (e) {} }
 // the settings window
 const CSF = { "cs-prevclr": "prevClr", "cs-body": "body", "cs-bord": "bord", "cs-bu": "bu", "cs-bd": "bd", "cs-wick": "wick", "cs-wu": "wu", "cs-wd": "wd", "cs-prec": "prec", "cs-title": "title", "cs-titlek": "titleK", "cs-mstat": "mstat", "cs-vals": "vals", "cs-chg": "chg", "cs-lbg": "lbg", "cs-lbga": "lbga",
   "cs-cd": "cd", "cs-last": "last", "cs-pdc": "pdc", "cs-pdcc": "pdcc", "cs-hl": "hl", "cs-hlc": "hlc", "cs-ba": "ba", "cs-bidc": "bidc", "cs-askc": "askc", "cs-dow": "dow", "cs-df": "df", "cs-hf": "hf", "cs-keepl": "keepC",

@@ -617,3 +617,4 @@ body.glass .tools:not(.float),body.glass .tools.float{background:linear-gradient
 
 /* KING_CONN */
 .conn{display:flex;flex-direction:column;gap:8px;padding:10px 0;border-top:1px solid rgba(255,255,255,.06)}.conn:first-of-type{border-top:0}.conn>b{font-size:14px}
+.nsec{display:flex;flex-direction:column;gap:6px;margin:8px 0}.nsec select{width:100%}

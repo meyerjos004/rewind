@@ -8,7 +8,7 @@
 <link rel="manifest" href="manifest.json"><meta name="theme-color" content="#0a0a0d"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"><meta name="apple-mobile-web-app-title" content="KAIROS"><link rel="apple-touch-icon" href="icon.svg">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=Inter:wght@400;500;600;700&family=Geist+Mono:wght@400;500;600&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="style.css?v=1113b">
+<link rel="stylesheet" href="style.css?v=1113c">
 <script src="https://unpkg.com/lightweight-charts@4.2.0/dist/lightweight-charts.standalone.production.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
 <script defer src="https://cdn.jsdelivr.net/npm/motion@14.12.0/dist/motion.js"></script>
@@ -229,10 +229,14 @@
           <button id="n-oauth" class="primary wide">Connect Notion</button>
           <details id="n-tokenbox" class="hidden"><summary class="small">Token</summary><div class="row"><input id="n-token" type="password" placeholder="ntn_…"><button id="n-save">Connect</button></div></details>
         </div>
-        <div id="n-setup" class="hidden"><label>Put the "Rewind Journal" database in<select id="n-pages"></select></label><button id="n-create" class="primary">Create journal</button></div>
+        <div id="n-import" class="hidden nsec"><b class="tiny">Bring in my real trades (read-only)</b>
+          <div class="row"><select id="n-src"><option value="">Pick your trade journal…</option></select><button id="n-imp" class="ghost">Import</button></div>
+          <label class="ck"><input id="n-showreal" type="checkbox" checked> Show my real trades on the chart once that replay day is over</label>
+          <div id="n-impinfo" class="tiny muted"></div></div>
+        <div id="n-setup" class="hidden nsec"><b class="tiny">Send my backtest trades out</b><label class="tiny muted">KAIROS makes its own "KAIROS Backtesting Trades" database inside this page, so your real journal is never touched<select id="n-pages"></select></label><button id="n-create" class="primary">Create backtest database</button></div>
         <div id="n-ready" class="hidden">
-          <label class="ck"><input id="n-auto" type="checkbox" checked> Sync each trade automatically</label>
-          <div class="row"><a id="n-open" target="_blank" rel="noopener">Open my Notion journal ↗</a></div>
+          <b class="tiny">Send my backtest trades out</b><label class="ck"><input id="n-auto" type="checkbox" checked> Send each backtest trade automatically</label>
+          <div class="row"><a id="n-open" target="_blank" rel="noopener">Open KAIROS Backtesting Trades ↗</a></div>
           <div class="row"><button id="n-sync" class="ghost">Sync now</button><button id="n-off" class="ghost">Disconnect</button></div>
         </div>
         <p id="n-msg" class="small muted"></p></div>
@@ -387,7 +391,7 @@
 <div id="dlg" class="dlgwrap hidden"><div class="glass dlg pop" id="dlgbox"></div></div>
 <div id="toast" class="toast glass hidden"></div>
 <footer class="tiny muted hidden-trade" id="foot">Charts by <a href="https://www.tradingview.com/" target="_blank" rel="noopener">TradingView Lightweight Charts™</a> · practice tool, not financial advice</footer>
-<script src="config.js?v=1113b"></script>
-<script src="app.js?v=1113b"></script>
+<script src="config.js?v=1113c"></script>
+<script src="app.js?v=1113c"></script>
 </body>
 </html>
